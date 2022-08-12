@@ -287,10 +287,6 @@ func TestGetLoginURL(t *testing.T) {
 // func TestGetUser(t *testing.T) {
 // }
 
-// TODO? Tested in TestValidateCookie
-// func TestMakeCookie(t *testing.T) {
-// }
-
 func TestMakeCSRFCookie(t *testing.T) {
 	r, _ := http.NewRequest("GET", "http://app.example.com", nil)
 	r.Header.Add("X-Forwarded-Host", "app.example.com")
@@ -412,3 +408,5 @@ func TestCookieDomainMatch(t *testing.T) {
 		t.Error("Other domain should not match")
 	}
 }
+
+// TODO: TestValidateToken

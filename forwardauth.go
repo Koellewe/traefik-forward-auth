@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -40,6 +41,16 @@ type ForwardAuth struct {
 	Whitelist []string
 
 	Prompt string
+
+	RoleConfig *map[string][]string
+}
+
+func (f *ForwardAuth) SetRoleConfig(newRoleConfig map[string][]string) {
+	// sort all hosts. Used later for binary searching
+	for _, hosts := range newRoleConfig {
+		sort.Strings(hosts)
+	}
+	f.RoleConfig = &newRoleConfig
 }
 
 // Request Validation
@@ -155,6 +166,60 @@ func (f *ForwardAuth) ExchangeCode(r *http.Request, code string) (string, error)
 	err = json.NewDecoder(res.Body).Decode(&token)
 
 	return token.Token, err
+}
+
+// Check that token is legit
+func (f *ForwardAuth) ValidateToken(token string, redirUri string) error {
+
+	splat := strings.Split(token, ".")
+	if len(splat) != 3 {
+		return errors.New("JWT does not have 3 parts")
+	}
+
+	payload := splat[1]
+	rawPayload, err := base64.RawStdEncoding.DecodeString(payload)
+	if err != nil {
+		return err
+	}
+
+	if f.RoleConfig == nil {
+		// no further checks
+		// (ahem, per the OIDC spec we should be checking 8 different things here, but nvm)
+		return nil
+	}
+
+	// parsing json as unstructured because its format will vary if improperly configured
+	var result map[string]interface{}
+	json.Unmarshal(rawPayload, &result) // maybe wrap rawPayload in a byte[]
+	resAccess := result["resource_access"].(map[string]interface{})
+
+	clientData, ok := resAccess[f.ClientId]
+	if !ok {
+		return errors.New("Token is missing client roles")
+	}
+
+	tokenRolesUncasted, ok := clientData.(map[string]interface{})["roles"]
+	if !ok {
+		return errors.New("Token is missing client roles")
+	}
+	tokenRoles := tokenRolesUncasted.([]string)
+
+	targetUrl, err := url.Parse(redirUri)
+	if err != nil {
+		return err
+	}
+
+	// Iterate through configured roles
+	for configuredRole, allowedHosts := range *f.RoleConfig {
+		if IsItemInSlice(configuredRole, tokenRoles) {
+			if IsItemInSlice(targetUrl.Host, allowedHosts) {
+				// access granted!
+				return nil
+			}
+		}
+	}
+
+	return errors.New(fmt.Sprintf("None of the user's roles allows access to %s", targetUrl.Host))
 }
 
 // Get user with token
@@ -387,4 +452,12 @@ func (c *CookieDomain) Match(host string) bool {
 	}
 
 	return false
+}
+
+// Binary search. Slice must be sorted.
+func IsItemInSlice(item string, slice []string) bool {
+	i := sort.Search(len(slice),
+		func(i int) bool { return slice[i] >= item })
+
+	return i < len(slice) && slice[i] == item
 }

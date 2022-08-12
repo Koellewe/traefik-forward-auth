@@ -57,8 +57,8 @@ func handler(w http.ResponseWriter, r *http.Request) {
 		// Set the CSRF cookie
 		http.SetCookie(w, fw.MakeCSRFCookie(r, nonce))
 		logger.Debug("Set CSRF cookie and redirecting to oidc login")
-		logger.Debug("uri.Path was %s",uri.Path)
-		logger.Debug("fw.Path was %s",fw.Path)
+		logger.Debugf("uri.Path was %s", uri.Path)
+		logger.Debugf("fw.Path was %s", fw.Path)
 
 		// Forward them on
 		http.Redirect(w, r, fw.GetLoginURL(r, nonce), http.StatusTemporaryRedirect)
@@ -124,10 +124,19 @@ func handleCallback(w http.ResponseWriter, r *http.Request, qs url.Values,
 		return
 	}
 
+	// Validate token
+	err = fw.ValidateToken(token, fw.redirectUri(r))
+	if err != nil {
+		logger.Warnf("Failed to validate token: %v", err)
+		http.Error(w, "Bad token", 403)
+		return
+	}
+
 	// Get user
 	user, err := fw.GetUser(token)
 	if err != nil {
 		logger.Errorf("Error getting user: %s", err)
+		http.Error(w, "Service unavailable", 503)
 		return
 	}
 

@@ -1,163 +1,34 @@
-[cookbookurl]: https://geek-cookbook.funkypenguin.co.nz
-[kitchenurl]: https://discourse.kitchen.funkypenguin.co.nz
-[discordurl]: http://chat.funkypenguin.co.nz
-[patreonurl]: https://patreon.com/funkypenguin
-[blogurl]: https://www.funkypenguin.co.nz
-[hub]: https://hub.docker.com/r/funkypenguin/poor-mans-k8s-lb/
+# What is Koellewe/traefik-forward-auth ?
 
-[![geek-cookbook](https://raw.githubusercontent.com/funkypenguin/www.funkypenguin.co.nz/master/images/geek-kitchen-banner.png)][cookbookurl]
+A fork of https://funkypenguin/traefik-forward-auth, which is a fork of https://github.com/noelcatt/traefik-forward-auth, which is in turn a fork of https://github.com/thomseddon/traefik-forward-auth.
 
-# Contents
+Why all the forkery? @thomseddon's version supports only Google OIDC, while @noelcatt's version supports any OIDC, but doesn't have a docker image build pipeline setup. @funkypenguin's version does have a containerisation, but misses a convenient feature I wanted, which is role-based authentication for specific endpoints. More details on this below.
 
-1. [What is funkypenguin/poor-mans-k8s-lb?](#what-is-funkypenguin-poor-mans-k8s-lb)
-2. [Why should I use this?](#why-should-i-use-this)
-3. [How do I use it?](#how-do-i-use-this)
-4. [CHANGELOG](#changelog)
+For proper documentation, check out the upstream ([funkypenguin/traefik-forward-auth](https://funkypenguin/traefik-forward-auth)).
 
----
+## Role-based authentication
 
-This container is maintained by [Funky Penguin's Geek Cookbook][cookbookurl], a collection of "recipes" to run popular applications
-on Docker Swarm or Kubernetes, in a cheeky, geek format.
+Keycloak has the notion of roles for a user, which essentially determines what permissions they have. 
 
-Got more details at:
-* ![Discourse with us!](https://img.shields.io/discourse/https/discourse.geek-kitchen.funkypenguin.co.nz/topics.svg) [Forums][kitchenurl]
-* ![Chat with us!](https://img.shields.io/discord/396055506072109067.svg) [Friendly Discord Chat][discordurl]
-* ![Geek out with us!](https://img.shields.io/badge/recipies-35+-brightgreen.svg) [Funky Penguin's Geek Cookbook][cookbookurl]
-* ![Thank YOU](https://img.shields.io/badge/thank-you-brightgreen.svg) [Patreon][patreonurl]
-* ![Read blog!](https://img.shields.io/badge/read-blog-brightgreen.svg) [Blog][blogurl]
+// Todo implementation details...
 
----
-
-# What is funkypenguin/traefik-forward-auth ?
-
-A fork of https://github.com/noelcatt/traefik-forward-auth, which is in turn a fork of https://github.com/thomseddon/traefik-forward-auth.
-
-Why all the forkery? @thomseddon's version supports only Google OIDC, while @noelcatt's version supports any OIDC, but doesn't have a docker image build pipeline setup. At some point, I hope thaht @thomseddon's version will be extended to support multiple OIDCs, but until then, I'll maintain my own copy.
-
-[![Build Status](https://travis-ci.org/funkypenguin/traefik-forward-auth.svg?branch=master)](https://travis-ci.org/funkypenguin/traefik-forward-auth) [![Go Report Card](https://goreportcard.com/badge/github.com/funkypenguin/traefik-forward-auth)](https://goreportcard.com/badge/github.com/funkypenguin/traefik-forward-auth)
+https://stackoverflow.com/a/62359540/3900981
 
 
-# Why should I use this?
-
-
-# How do I use this?
-
-# CHANGELOG
-
-# Upstream README
-
-
-# Traefik Forward Auth [![Build Status](https://travis-ci.org/funkypenguin/traefik-forward-auth.svg?branch=master)](https://travis-ci.org/funkypenguin/traefik-forward-auth) [![Go Report Card](https://goreportcard.com/badge/github.com/funkypenguin/traefik-forward-auth)](https://goreportcard.com/badge/github.com/funkypenguin/traefik-forward-auth)
-
-A minimal forward authentication service that provides Google oauth based login and authentication for the traefik reverse proxy.
-
-
-## Why?
-
-- Seamlessly overlays any http service with a single endpoint (see: `-url-path` in [Configuration](#configuration))
-- Supports multiple domains/subdomains by dynamically generating redirect_uri's
-- Allows authentication to persist across multiple domains (see [Cookie Domains](#cookie-domains))
-- Supports extended authentication beyond Google token lifetime (see: `-lifetime` in [Configuration](#configuration))
-
-## Quick Start
-
-See the (examples) directory for example docker compose and traefik configuration files that demonstrates the forward authentication configuration for traefik and passing required configuration values to traefik-forward-auth.
 
 ## Configuration
 
-The following configuration is supported:
+The following configuration is supported (on top of the upstream's):
 
 
 |Flag                   |Type  |Description|
 |-----------------------|------|-----------|
-|-client-id|string|*Google Client ID (required)|
-|-client-secret|string|*Google Client Secret (required)|
-|-secret|string|*Secret used for signing (required)|
-|-oidcIssuer|string|*OIDC Issuer URL (required)|
-|-config|string|Path to config file|
-|-auth-host|string|Central auth login (see below)|
-|-cookie-domains|string|Comma separated list of cookie domains (see below)|
-|-cookie-name|string|Cookie Name (default "_forward_auth")|
-|-cookie-secure|bool|Use secure cookies (default true)|
-|-csrf-cookie-name|string|CSRF Cookie Name (default "_forward_auth_csrf")|
-|-domain|string|Comma separated list of email domains to allow|
-|-whitelist|string|Comma separated list of email addresses to allow|
-|-lifetime|int|Session length in seconds (default 43200)|
-|-url-path|string|Callback URL (default "_oauth")|
-|-prompt|string|Space separated list of [OpenID prompt options](https://developers.google.com/identity/protocols/OpenIDConnect#prompt)|
-|-log-level|string|Log level: trace, debug, info, warn, error, fatal, panic (default "warn")|
-|-log-format|string|Log format: text, json, pretty (default "text")|
+|-role-auth-file|string|*Role authentication file (optional)|
 
 Configuration can also be supplied as environment variables (use upper case and swap `-`'s for `_`'s e.g. `-client-id` becomes `CLIENT_ID`)
 
 Configuration can also be supplied via a file, you can specify the location with `-config` flag, the format is `flag value` one per line, e.g. `client-id your-client-id`)
 
-## OAuth Configuration
-
-Head to https://console.developers.google.com & make sure you've switched to the correct email account.
-
-Create a new project then search for and select "Credentials" in the search bar. Fill out the "OAuth Consent Screen" tab.
-
-Click, "Create Credentials" > "OAuth client ID". Select "Web Application", fill in the name of your app, skip "Authorized JavaScript origins" and fill "Authorized redirect URIs" with all the domains you will allow authentication from, appended with the `url-path` (e.g. https://app.test.com/_oauth)
-
-## Usage
-
-The authenticated user is set in the `X-Forwarded-User` header, to pass this on add this to the `authResponseHeaders` as shown [here](https://github.com/thomseddon/traefik-forward-auth/blob/master/example/docker-compose-dev.yml).
-
-## User Restriction
-
-You can restrict who can login with the following parameters:
-
-* `-domain` - Use this to limit logins to a specific domain, e.g. test.com only
-* `-whitelist` - Use this to only allow specific users to login e.g. thom@test.com only
-
-Note, if you pass `whitelist` then only this is checked and `domain` is effectively ignored.
-
-## Cookie Domains
-
-You can supply a comma separated list of cookie domains, if the host of the original request is a subdomain of any given cookie domain, the authentication cookie will set with the given domain.
-
-For example, if cookie domain is `test.com` and a request comes in on `app1.test.com`, the cookie will be set for the whole `test.com` domain. As such, if another request is forwarded for authentication from `app2.test.com`, the original cookie will be sent and so the request will be allowed without further authentication.
-
-Beware however, if using cookie domains whilst running multiple instances of traefik/traefik-forward-auth for the same domain, the cookies will clash. You can fix this by using the same `cookie-secret` in both instances, or using a different `cookie-name` on each.
-
-## Operation Modes
-
-#### Overlay
-
-Overlay is the default operation mode, in this mode the authorisation endpoint is overlayed onto any domain. By default the `/_oauth` path is used, this can be customised using the `-url-path` option.
-
-If a request comes in for `www.myapp.com/home` then the user will be redirected to the google login, following this they will be sent back to `www.myapp.com/_oauth`, where their token will be validated (this request will not be forwarded to your application). Following successful authoristion, the user will return to their originally requested url of `www.myapp.com/home`.
-
-As the hostname in the `redirect_uri` is dynamically generated based on the orignal request, every hostname must be permitted in the Google OAuth console (e.g. `www.myappp.com` would need to be added in the above example)
-
-#### Auth Host
-
-This is an optional mode of operation that is useful when dealing with a large number of subdomains, it is activated by using the `-auth-host` config option (see [this example docker-compose.yml](https://github.com/thomseddon/traefik-forward-auth/blob/master/example/docker-compose-auth-host.yml)).
-
-For example, if you have a few applications: `app1.test.com`, `app2.test.com`, `appN.test.com`, adding every domain to Google's console can become laborious.
-To utilise an auth host, permit domain level cookies by setting the cookie domain to `test.com` then set the `auth-host` to: `auth.test.com`.
-
-The user flow will then be:
-
-1. Request to `app10.test.com/home/page`
-2. User redirected to Google login
-3. After Google login, user is redirected to `auth.test.com/_oauth`
-4. Token, user and CSRF cookie is validated, auth cookie is set to `test.com`
-5. User is redirected to `app10.test.com/home/page`
-6. Request is allowed
-
-With this setup, only `auth.test.com` must be permitted in the Google console.
-
-Two criteria must be met for an `auth-host` to be used:
-
-1. Request matches given `cookie-domain`
-2. `auth-host` is also subdomain of same `cookie-domain`
-
-## Copyright
-
-2018 Thom Seddon
-
-## License
+# License
 
 [MIT](https://github.com/thomseddon/traefik-forward-auth/blob/master/LICENSE.md)
