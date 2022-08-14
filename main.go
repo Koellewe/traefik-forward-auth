@@ -191,6 +191,7 @@ func main() {
 	prompt := flag.String("prompt", "", "Space separated list of OpenID prompt options")
 	logLevel := flag.String("log-level", "warn", "Log level: trace, debug, info, warn, error, fatal, panic")
 	logFormat := flag.String("log-format", "text", "Log format: text, json, pretty")
+	roleAuthFile := flag.String("role-auth-file", "", "Role auth config file path")
 
 	flag.Parse()
 
@@ -241,6 +242,22 @@ func main() {
 		whitelist = strings.Split(*emailWhitelist, ",")
 	}
 
+	// Load role auth
+	var roleConfig map[string][]string
+	roleConfigPtr := &roleConfig
+	if *roleAuthFile != "" {
+		fileBytes, err := ioutil.ReadFile(*roleAuthFile)
+		if err != nil {
+			log.Fatalf("Failed to read role auth config file %s: %v", *roleAuthFile, err)
+		}
+		err = json.Unmarshal(fileBytes, roleConfigPtr)
+		if err != nil {
+			log.Fatalf("Failed to deserialise role auth config file: %v", err)
+		}
+	} else {
+		roleConfigPtr = nil
+	}
+
 	// Setup
 	fw = &ForwardAuth{
 		Path:     fmt.Sprintf("/%s", *path),
@@ -265,6 +282,8 @@ func main() {
 		Whitelist: whitelist,
 
 		Prompt: *prompt,
+
+		RoleConfig: roleConfigPtr,
 	}
 
 	// Attach handler
