@@ -1,4 +1,4 @@
-FROM golang:1.10-alpine as builder
+FROM golang:1.17-alpine as builder
 
 # Now we DO need these, for the auto-labeling of the image
 ARG BUILD_DATE
@@ -6,7 +6,7 @@ ARG VCS_REF
 
 # Good docker practice, plus we get microbadger badges
 LABEL org.label-schema.build-date=$BUILD_DATE \
-      org.label-schema.vcs-url="https://github.com/funkypenguin/traefik-forward-auth.git" \
+      org.label-schema.vcs-url="https://github.com/Koellewe/traefik-forward-auth.git" \
       org.label-schema.vcs-ref=$VCS_REF \
       org.label-schema.schema-version="2.2-r1"
 
@@ -18,8 +18,7 @@ WORKDIR /app
 # Add libraries
 RUN apk add --no-cache git && \
   go get "github.com/namsral/flag" && \
-  go get "github.com/sirupsen/logrus" && \
-  apk del git
+  go get "github.com/sirupsen/logrus"
 
 # Copy & build
 ADD . /app/

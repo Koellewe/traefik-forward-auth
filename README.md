@@ -1,10 +1,10 @@
 # What is Koellewe/traefik-forward-auth ?
 
-A fork of https://funkypenguin/traefik-forward-auth, which is a fork of https://github.com/noelcatt/traefik-forward-auth, which is in turn a fork of https://github.com/thomseddon/traefik-forward-auth.
+A fork of https://github.com/funkypenguin/traefik-forward-auth, which is a fork of https://github.com/noelcatt/traefik-forward-auth, which is in turn a fork of https://github.com/thomseddon/traefik-forward-auth.
 
 Why all the forkery? @thomseddon's version supports only Google OIDC, while @noelcatt's version supports any OIDC, but doesn't have a docker image build pipeline setup. @funkypenguin's version does have a containerisation, but misses a convenient feature I wanted, which is role-based authentication for specific endpoints. More details on this below.
 
-For proper documentation, check out the upstream ([funkypenguin/traefik-forward-auth](https://funkypenguin/traefik-forward-auth)).
+For proper documentation, check out the upstream ([funkypenguin/traefik-forward-auth](https://github.com/funkypenguin/traefik-forward-auth)).
 
 ## Role-based authentication
 
@@ -13,7 +13,6 @@ Keycloak has the notion of roles for a user, which essentially determines what p
 // Todo implementation details...
 
 https://stackoverflow.com/a/62359540/3900981
-
 
 
 ## Configuration
