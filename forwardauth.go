@@ -190,7 +190,7 @@ func (f *ForwardAuth) ValidateToken(token string, redirUri string) error {
 
 	// parsing json as unstructured because its format will vary if improperly configured
 	var result map[string]interface{}
-	json.Unmarshal(rawPayload, &result) // maybe wrap rawPayload in a byte[]
+	json.Unmarshal(rawPayload, &result)
 	resAccess := result["resource_access"].(map[string]interface{})
 
 	clientData, ok := resAccess[f.ClientId]
@@ -202,7 +202,11 @@ func (f *ForwardAuth) ValidateToken(token string, redirUri string) error {
 	if !ok {
 		return errors.New("Token is missing client roles")
 	}
-	tokenRoles := tokenRolesUncasted.([]string)
+	tokenRoles := []string{}
+	for _, item := range tokenRolesUncasted.([]interface{}) {
+		tokenRoles = append(tokenRoles, item.(string))
+	}
+	sort.Strings(tokenRoles) // for binary searching
 
 	targetUrl, err := url.Parse(redirUri)
 	if err != nil {

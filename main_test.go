@@ -1,8 +1,11 @@
 package main
 
 import (
+	"encoding/base64"
+	"encoding/json"
 	"fmt"
 	"time"
+
 	// "reflect"
 	"io/ioutil"
 	"net/http"
@@ -16,10 +19,28 @@ import (
  * Utilities
  */
 
-type TokenServerHandler struct{}
+type TokenServerHandler struct {
+	ClientId string
+	Roles    []string
+}
 
 func (t *TokenServerHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	fmt.Fprint(w, `{"access_token":"123456789"}`)
+	payload := map[string]interface{}{}
+	if t.ClientId != "" {
+		clientData := map[string][]string{}
+		clientData["roles"] = t.Roles
+		resAccess := map[string]interface{}{}
+		resAccess[t.ClientId] = clientData
+		payload["resource_access"] = resAccess
+	}
+
+	payloadJsonBytes, err := json.Marshal(payload)
+	if err != nil {
+		panic(fmt.Sprintf("Failed to serve test access token because of a JSON marshalling problem: %v", err))
+	}
+
+	// header and sig are not checked
+	fmt.Fprintf(w, `{"access_token":"header.%s.signature"}`, base64.RawStdEncoding.EncodeToString(payloadJsonBytes))
 }
 
 type UserServerHandler struct{}
@@ -61,6 +82,8 @@ func httpRequest(r *http.Request, c *http.Cookie) (*http.Response, string) {
 func newHttpRequest(uri string) *http.Request {
 	r := httptest.NewRequest("", "http://example.com", nil)
 	r.Header.Add("X-Forwarded-Uri", uri)
+	r.Header.Add("X-Forwarded-Proto", "http")
+	r.Header.Add("X-Forwarded-Host", "example.com")
 	return r
 }
 
@@ -165,6 +188,7 @@ func TestCallback(t *testing.T) {
 			Path:   "/auth",
 		},
 		CSRFCookieName: "csrf_test",
+		RoleConfig:     nil,
 	}
 
 	// Setup token server
@@ -185,7 +209,7 @@ func TestCallback(t *testing.T) {
 	req := newHttpRequest("_oauth")
 	res, _ := httpRequest(req, nil)
 	if res.StatusCode != 401 {
-		t.Error("Auth callback without cookie shound't be authorised, got:", res.StatusCode)
+		t.Error("Auth callback without cookie shouldn't be authorised, got:", res.StatusCode)
 	}
 
 	// Should catch invalid csrf cookie
@@ -193,7 +217,7 @@ func TestCallback(t *testing.T) {
 	c := fw.MakeCSRFCookie(req, "nononononononononononononononono")
 	res, _ = httpRequest(req, c)
 	if res.StatusCode != 401 {
-		t.Error("Auth callback with invalid cookie shound't be authorised, got:", res.StatusCode)
+		t.Error("Auth callback with invalid cookie shouldn't be authorised, got:", res.StatusCode)
 	}
 
 	// Should redirect valid request
@@ -206,5 +230,56 @@ func TestCallback(t *testing.T) {
 	fwd, _ := res.Location()
 	if fwd.Scheme != "http" || fwd.Host != "redirect" || fwd.Path != "" {
 		t.Error("Valid request should be redirected to return url, got:", fwd)
+	}
+}
+
+func TestCallbackWithRoles(t *testing.T) {
+	fw = &ForwardAuth{
+		Path:         "/_oauth",
+		ClientId:     "idtest",
+		ClientSecret: "sectest",
+		Scope:        "scopetest",
+		LoginURL: &url.URL{
+			Scheme: "http",
+			Host:   "test.com",
+			Path:   "/auth",
+		},
+		AuthHost:       "",
+		CSRFCookieName: "csrf_test",
+	}
+	fw.SetRoleConfig(map[string][]string{
+		"TEST_ROLE": {"example.com"},
+	})
+
+	// Setup token server
+	tokenServerHandler := &TokenServerHandler{
+		ClientId: "idtest",
+		Roles:    []string{"TEST_ROLE", "OTHER_ROLE"},
+	}
+	tokenServer := httptest.NewServer(tokenServerHandler)
+	tokenUrl, _ := url.Parse(tokenServer.URL)
+	fw.TokenURL = tokenUrl
+
+	// Setup user server
+	userServerHandler := &UserServerHandler{}
+	userServer := httptest.NewServer(userServerHandler)
+	defer userServer.Close()
+	userUrl, _ := url.Parse(userServer.URL)
+	fw.UserURL = userUrl
+
+	// Should redirect valid request
+	req := newHttpRequest("/_oauth?state=12345678901234567890123456789012:http://redirect")
+	c := fw.MakeCSRFCookie(req, "12345678901234567890123456789012")
+	res, _ := httpRequest(req, c)
+	if res.StatusCode != 307 {
+		t.Error("Valid callback should be allowed, got:", res.StatusCode)
+	}
+
+	// Change token server to serve other roles
+	tokenServerHandler.Roles = []string{"NON_APPLICABLE_ROLE"}
+	// Should forbid valid req with bad roles in token
+	res, _ = httpRequest(req, c)
+	if res.StatusCode != 403 {
+		t.Error("Valid callback with bad roles should be forbidden, got:", res.StatusCode)
 	}
 }
